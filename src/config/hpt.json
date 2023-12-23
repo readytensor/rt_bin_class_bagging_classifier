@@ -1,0 +1,29 @@
+{
+  "num_trials": 20,
+  "hyperparameters": [
+    {
+      "name": "n_estimators",
+      "short_desc": "The number of base estimators in the ensemble.",
+      "type": "int",
+      "search_type": "uniform",
+      "range_low": 10,
+      "range_high": 500
+    },
+    {
+      "name": "max_samples",
+      "short_desc": "The number of samples to draw from X to train each base estimator as % of total number of samples.",
+      "type": "real",
+      "search_type": "uniform",
+      "range_low": 0.1,
+      "range_high": 1.0
+    },
+    {
+      "name": "max_features",
+      "short_desc": "The number of features to draw from X to train each base estimator as % of total number of features.",
+      "type": "real",
+      "search_type": "uniform",
+      "range_low": 0.1,
+      "range_high": 1.0
+    }
+  ]
+}
