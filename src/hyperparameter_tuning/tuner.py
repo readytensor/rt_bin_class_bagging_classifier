@@ -88,7 +88,7 @@ class HyperParameterTuner:
         self.hpt_specs = hpt_specs
         self.hpt_results_dir_path = hpt_results_dir_path
         self.is_minimize = is_minimize
-        self.num_trials = hpt_specs.get("num_trials", 20)
+        self.num_trials = hpt_specs.get("num_trials", 5)
         assert self.num_trials >= 2, "Scikit-Optimize minimizer needs at least 2 trials"
 
         # names of hyperparameters in a list
@@ -205,26 +205,24 @@ class HyperParameterTuner:
         # Use 1/3 of the trials to explore the space initially, but at most 5 trials
         n_initial_points = max(1, min(self.num_trials // 3, 5))
         objective_func = self._get_objective_func(train_X, train_y, valid_X, valid_y)
-        optimizer_results = gp_minimize(
-            # the objective function to minimize
-            func=objective_func,
-            # the hyperparameter space
-            dimensions=self.hpt_space,
-            # starting sample
-            x0=self.default_hyperparameter_vals,
-            # the acquisition function
-            acq_func="EI",
-            # Number of evaluations of `func` with initialization points before
-            # approximating it with base_estimator
-            n_initial_points=n_initial_points,
-            # Number of calls to `func`,
-            n_calls=self.num_trials,
-            random_state=0,
-            callback=[logger_callback, StoppingCriterion(delta=0.03, n_best=5)],
-            verbose=False,
-        )
-        self.save_hpt_summary_results(optimizer_results)
-        return self.get_best_hyperparameters(optimizer_results)
+
+        values = self.hpt_space[0].categories
+
+        objective_value = 100
+        for value in values:
+            print(f"Running HPT with {self.hyperparameter_names[0]}:", value)
+            tmp_objective_value = objective_func([value])
+
+            if tmp_objective_value < objective_value:
+                objective_value = tmp_objective_value
+                best_param = value
+            print(
+                f"Current iteration value: {tmp_objective_value}",
+                f"Best value: {objective_value}",
+            )
+        print(f"Best param: {best_param}")
+
+        return {self.hyperparameter_names[0]: best_param}
 
     def get_best_hyperparameters(self, optimizer_results: Any) -> Dict[str, Any]:
         """Gets the best hyperparameters from the optimization results.

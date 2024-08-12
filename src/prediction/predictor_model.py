@@ -5,10 +5,10 @@ from typing import Optional
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.exceptions import NotFittedError
+from sklearn.metrics import f1_score
 
 warnings.filterwarnings("ignore")
 
@@ -18,7 +18,7 @@ PREDICTOR_FILE_NAME = "predictor.joblib"
 
 class Classifier:
     """
-    A wrapper class for the Bagging Classifier using Decision Tree 
+    A wrapper class for the Bagging Classifier using Decision Tree
     as the base classifier.
 
     This class provides a consistent interface that can be used with other
@@ -32,6 +32,7 @@ class Classifier:
         n_estimators: Optional[int] = 300,
         max_samples: Optional[float] = 1.0,
         max_features: Optional[float] = 1.0,
+        positive_class_weight: Optional[float] = 1,
         **kwargs,
     ):
         """Construct a new Bagging classifier.
@@ -49,6 +50,7 @@ class Classifier:
         self.n_estimators = int(n_estimators)
         self.max_samples = float(max_samples)
         self.max_features = float(max_features)
+        self.positive_class_weight = float(positive_class_weight)
         self.model = self.build_model()
         self._is_trained = False
 
@@ -57,7 +59,8 @@ class Classifier:
         model = BaggingClassifier(
             estimator=DecisionTreeClassifier(
                 min_samples_split=8,
-                min_samples_leaf=4
+                min_samples_leaf=4,
+                class_weight={0: 1, 1: self.positive_class_weight},
             ),
             n_estimators=self.n_estimators,
             max_samples=self.max_samples,
@@ -106,7 +109,8 @@ class Classifier:
             float: The accuracy of the classifier.
         """
         if self.model is not None:
-            return self.model.score(test_inputs.values, test_targets.values)
+            predictions = self.predict(test_inputs)
+            return f1_score(test_targets, predictions)
         raise NotFittedError("Model is not fitted yet.")
 
     def save(self, model_dir_path: str) -> None:

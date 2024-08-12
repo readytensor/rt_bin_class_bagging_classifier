@@ -160,11 +160,11 @@ def run_training(
         save_predictor_model(predictor, predictor_dir_path)
 
         # calculate and print validation accuracy
-        logger.info("Calculating accuracy on validation data...")
+        logger.info("Calculating f1-score on validation data...")
         val_accuracy = evaluate_predictor_model(
             predictor, transformed_val_inputs, transformed_val_targets
         )
-        logger.info(f"Validation data accuracy: {val_accuracy}")
+        logger.info(f"Validation data f1-score: {val_accuracy}")
 
         # fit and save explainer
         logger.info("Fitting and saving explainer...")
