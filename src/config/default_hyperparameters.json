@@ -2,5 +2,5 @@
   "n_estimators": 300,
   "max_samples": 1.0,
   "max_features": 1.0,
-  "positive_class_weight": 2
+  "prob_threshold": 0.25
 }

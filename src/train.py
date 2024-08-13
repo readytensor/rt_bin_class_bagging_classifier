@@ -137,6 +137,10 @@ def run_training(
                 default_hyperparameters_file_path=default_hyperparameters_file_path,
                 hpt_specs_file_path=hpt_specs_file_path,
             )
+            default_hyperparameters = read_json_as_dict(
+                default_hyperparameters_file_path
+            )
+            tuned_hyperparameters = {**default_hyperparameters, **tuned_hyperparameters}
             logger.info("Training classifier...")
             predictor = train_predictor_model(
                 transformed_train_inputs,

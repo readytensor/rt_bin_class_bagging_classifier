@@ -32,7 +32,7 @@ class Classifier:
         n_estimators: Optional[int] = 300,
         max_samples: Optional[float] = 1.0,
         max_features: Optional[float] = 1.0,
-        positive_class_weight: Optional[float] = 1,
+        prob_threshold: Optional[float] = 0.5,
         **kwargs,
     ):
         """Construct a new Bagging classifier.
@@ -50,7 +50,7 @@ class Classifier:
         self.n_estimators = int(n_estimators)
         self.max_samples = float(max_samples)
         self.max_features = float(max_features)
-        self.positive_class_weight = float(positive_class_weight)
+        self.prob_threshold = float(prob_threshold)
         self.model = self.build_model()
         self._is_trained = False
 
@@ -60,7 +60,6 @@ class Classifier:
             estimator=DecisionTreeClassifier(
                 min_samples_split=8,
                 min_samples_leaf=4,
-                class_weight={0: 1, 1: self.positive_class_weight},
             ),
             n_estimators=self.n_estimators,
             max_samples=self.max_samples,
@@ -109,8 +108,11 @@ class Classifier:
             float: The accuracy of the classifier.
         """
         if self.model is not None:
-            predictions = self.predict(test_inputs)
-            return f1_score(test_targets, predictions)
+            prob = self.predict_proba(test_inputs)
+            labels = prob[:, 1] > self.prob_threshold
+
+            return f1_score(test_targets, labels)
+
         raise NotFittedError("Model is not fitted yet.")
 
     def save(self, model_dir_path: str) -> None:
