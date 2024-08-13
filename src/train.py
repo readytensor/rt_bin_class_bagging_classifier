@@ -10,6 +10,7 @@ from prediction.predictor_model import (
     train_predictor_model,
 )
 from preprocessing.preprocess import (
+    handle_class_imbalance,
     insert_nulls_in_nullable_features,
     save_pipeline_and_target_encoder,
     train_pipeline_and_target_encoder,
@@ -137,6 +138,13 @@ def run_training(
                 default_hyperparameters_file_path=default_hyperparameters_file_path,
                 hpt_specs_file_path=hpt_specs_file_path,
             )
+
+            default_hyperparameters = read_json_as_dict(
+                default_hyperparameters_file_path
+            )
+
+            tuned_hyperparameters = {**default_hyperparameters, **tuned_hyperparameters}
+
             logger.info("Training classifier...")
             predictor = train_predictor_model(
                 transformed_train_inputs,
@@ -160,11 +168,11 @@ def run_training(
         save_predictor_model(predictor, predictor_dir_path)
 
         # calculate and print validation accuracy
-        logger.info("Calculating accuracy on validation data...")
+        logger.info("Calculating f1-score on validation data...")
         val_accuracy = evaluate_predictor_model(
             predictor, transformed_val_inputs, transformed_val_targets
         )
-        logger.info(f"Validation data accuracy: {val_accuracy}")
+        logger.info(f"Validation data f1-score: {val_accuracy}")
 
         # fit and save explainer
         logger.info("Fitting and saving explainer...")
@@ -202,4 +210,4 @@ def parse_arguments() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_arguments()
-    run_training(run_tuning=args.tune)
+    run_training(run_tuning=True)

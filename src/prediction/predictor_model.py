@@ -5,10 +5,11 @@ from typing import Optional
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.exceptions import NotFittedError
+from preprocessing.preprocess import handle_class_imbalance
+from sklearn.metrics import f1_score
 
 warnings.filterwarnings("ignore")
 
@@ -18,7 +19,7 @@ PREDICTOR_FILE_NAME = "predictor.joblib"
 
 class Classifier:
     """
-    A wrapper class for the Bagging Classifier using Decision Tree 
+    A wrapper class for the Bagging Classifier using Decision Tree
     as the base classifier.
 
     This class provides a consistent interface that can be used with other
@@ -32,6 +33,7 @@ class Classifier:
         n_estimators: Optional[int] = 300,
         max_samples: Optional[float] = 1.0,
         max_features: Optional[float] = 1.0,
+        smote_k_neighbors: Optional[int] = 1,
         **kwargs,
     ):
         """Construct a new Bagging classifier.
@@ -49,16 +51,14 @@ class Classifier:
         self.n_estimators = int(n_estimators)
         self.max_samples = float(max_samples)
         self.max_features = float(max_features)
+        self.smote_k_neighbors = int(smote_k_neighbors)
         self.model = self.build_model()
         self._is_trained = False
 
     def build_model(self) -> BaggingClassifier:
         """Build a new classifier."""
         model = BaggingClassifier(
-            estimator=DecisionTreeClassifier(
-                min_samples_split=8,
-                min_samples_leaf=4
-            ),
+            estimator=DecisionTreeClassifier(min_samples_split=8, min_samples_leaf=4),
             n_estimators=self.n_estimators,
             max_samples=self.max_samples,
             max_features=self.max_features,
@@ -73,6 +73,9 @@ class Classifier:
             train_inputs (pandas.DataFrame): The features of the training data.
             train_targets (pandas.Series): The labels of the training data.
         """
+        train_inputs, train_targets = handle_class_imbalance(
+            train_inputs, train_targets, k_neighbors=self.smote_k_neighbors
+        )
         self.model.fit(train_inputs, train_targets)
         self._is_trained = True
 
@@ -106,7 +109,8 @@ class Classifier:
             float: The accuracy of the classifier.
         """
         if self.model is not None:
-            return self.model.score(test_inputs.values, test_targets.values)
+            predictions = self.predict(test_inputs)
+            return f1_score(test_targets, predictions)
         raise NotFittedError("Model is not fitted yet.")
 
     def save(self, model_dir_path: str) -> None:
