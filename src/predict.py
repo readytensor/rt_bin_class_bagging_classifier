@@ -21,6 +21,7 @@ def create_predictions_dataframe(
     prediction_field_name: str,
     ids: pd.Series,
     id_field_name: str,
+    positive_class_weight: float,
     return_probs: bool = False,
 ) -> pd.DataFrame:
     """
@@ -52,6 +53,7 @@ def create_predictions_dataframe(
     if len(predictions_arr) != len(ids):
         raise ValueError("Length of ids does not match number of predictions")
     predictions_df.insert(0, id_field_name, ids)
+    predictions_df["positive_class_weight"] = positive_class_weight
     if return_probs:
         return predictions_df
     predictions_df[prediction_field_name] = predictions_df[class_names].idxmax(axis=1)
@@ -130,6 +132,7 @@ def run_batch_predictions(
             model_config["prediction_field_name"],
             test_data[data_schema.id],
             data_schema.id,
+            predictor_model.positive_class_weight,
             return_probs=True,
         )
 
