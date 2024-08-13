@@ -125,6 +125,7 @@ class HyperParameterTuner:
             its performance"""
             # convert list of HP values into a dictionary of name:val pairs
             hyperparameters = dict(zip(self.hyperparameter_names, trial))
+            hyperparameters = self.default_hyperparameters | hyperparameters
             if self.classifier is None:
                 # train model
                 self.classifier = train_predictor_model(
