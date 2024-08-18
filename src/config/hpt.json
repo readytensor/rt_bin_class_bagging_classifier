@@ -1,12 +1,5 @@
 {
-  "num_trials": 5,
-  "hyperparameters": [
-    {
-      "name": "smote_k_neighbors",
-      "short_desc": "Number of neighbors for the SMOTE algorithm.",
-      "type": "categorical",
-      "categories": [1, 3, 5, 7, 9]
-
-    }
-  ]
+  "k_neighbors": {
+    "grid_search_vals": [1, 3, 5, 7, 9]
+  }
 }

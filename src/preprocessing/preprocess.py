@@ -126,7 +126,10 @@ def load_pipeline_and_target_encoder(
 
 
 def handle_class_imbalance(
-    transformed_data: pd.DataFrame, transformed_labels: pd.Series, k_neighbors: int = 1
+    transformed_data: pd.DataFrame,
+    transformed_labels: pd.Series,
+    k_neighbors: int = 1,
+    random_state: int = 0,
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Handle class imbalance using SMOTE.
@@ -134,14 +137,14 @@ def handle_class_imbalance(
     Args:
         transformed_data (pd.DataFrame): The transformed data.
         transformed_labels (pd.Series): The transformed labels.
+        k_neighbors (int): The random state seed for reproducibility. Defaults to 0.
         random_state (int): The random state seed for reproducibility. Defaults to 0.
 
     Returns:
         Tuple[pd.DataFrame, pd.Series]: A tuple containing the balanced data and
             balanced labels.
     """
-
-    smote = SMOTE(k_neighbors=k_neighbors, random_state=0)
+    smote = SMOTE(k_neighbors=k_neighbors, random_state=random_state)
     balanced_data, balanced_labels = smote.fit_resample(
         transformed_data, transformed_labels
     )
