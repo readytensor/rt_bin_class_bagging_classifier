@@ -127,7 +127,7 @@ def get_preprocess_pipeline(data_schema: Any, preprocessing_config: dict) -> Pip
             ("constant_feature_dropper", constant_feature_dropper),
             ("duplicated_feature_dropper", duplicated_feature_dropper),
             ("one_hot_encoder", one_hot_encoder),
-            ("correlated_feature_dropper", correlated_feature_dropper),
+            # ("correlated_feature_dropper", correlated_feature_dropper),
             ("column_sorter", column_sorter),
         ]
     )

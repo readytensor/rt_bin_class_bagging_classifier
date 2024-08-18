@@ -132,7 +132,9 @@ class HyperParameterTuner:
                     train_X, train_y, hyperparameters
                 )
             else:
-                self.classifier.prob_threshold = hyperparameters["prob_threshold"]
+                self.classifier.decision_threshold = hyperparameters[
+                    "decision_threshold"
+                ]
             score = round(
                 evaluate_predictor_model(self.classifier, valid_X, valid_y), 6
             )

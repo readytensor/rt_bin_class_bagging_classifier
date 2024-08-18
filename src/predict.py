@@ -22,7 +22,7 @@ def create_predictions_dataframe(
     ids: pd.Series,
     id_field_name: str,
     return_probs: bool = False,
-    prob_threshold: float = 0.5,
+    decision_threshold: float = 0.5,
 ) -> pd.DataFrame:
     """
     Converts the predictions numpy array into a dataframe having the required structure.
@@ -57,11 +57,11 @@ def create_predictions_dataframe(
         return predictions_df
     negative_class = class_names[0]
     positive_class = class_names[1]
-    labels = predictions_arr[:, 1] > prob_threshold
+    labels = predictions_arr[:, 1] > decision_threshold
     labels = np.where(labels, positive_class, negative_class)
 
     predictions_df[prediction_field_name] = labels
-    predictions_df["threshold"] = prob_threshold
+    predictions_df["threshold"] = decision_threshold
     return predictions_df
 
 
@@ -137,7 +137,7 @@ def run_batch_predictions(
             test_data[data_schema.id],
             data_schema.id,
             return_probs=False,
-            prob_threshold=predictor_model.prob_threshold,
+            decision_threshold=predictor_model.decision_threshold,
         )
 
         logger.info("Validating predictions...")

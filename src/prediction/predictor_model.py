@@ -32,7 +32,7 @@ class Classifier:
         n_estimators: Optional[int] = 300,
         max_samples: Optional[float] = 1.0,
         max_features: Optional[float] = 1.0,
-        prob_threshold: Optional[float] = 0.5,
+        decision_threshold: Optional[float] = 0.5,
         **kwargs,
     ):
         """Construct a new Bagging classifier.
@@ -50,7 +50,7 @@ class Classifier:
         self.n_estimators = int(n_estimators)
         self.max_samples = float(max_samples)
         self.max_features = float(max_features)
-        self.prob_threshold = float(prob_threshold)
+        self.decision_threshold = float(decision_threshold)
         self.model = self.build_model()
         self._is_trained = False
 
@@ -109,7 +109,7 @@ class Classifier:
         """
         if self.model is not None:
             prob = self.predict_proba(test_inputs)
-            labels = prob[:, 1] > self.prob_threshold
+            labels = prob[:, 1] >= self.decision_threshold
 
             return f1_score(test_targets, labels)
 
