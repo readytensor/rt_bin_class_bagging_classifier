@@ -1,13 +1,13 @@
-import argparse
+import json
 
 from config import paths
 from data_models.data_validator import validate_data
-from hyperparameter_tuning.tuner import tune_hyperparameters
 from logger import get_logger, log_error
 from prediction.predictor_model import (
     evaluate_predictor_model,
     save_predictor_model,
     train_predictor_model,
+    set_decision_threshold,
 )
 from preprocessing.preprocess import (
     insert_nulls_in_nullable_features,
@@ -22,6 +22,59 @@ from xai.explainer import fit_and_save_explainer
 logger = get_logger(task_name="train")
 
 
+def tune_decision_threshold(
+    predictor,
+    transformed_val_inputs,
+    transformed_val_labels,
+    hpt_specs_file_path,
+    hpt_results_dir_path,
+):
+    """
+    Tune the decision threshold for the predictor model.
+
+    Args:
+        predictor: The trained predictor model.
+        transformed_val_inputs: Transformed validation inputs.
+        transformed_val_labels: Transformed validation labels.
+        hpt_specs_file_path: Path to the hyperparameter tuning specifications file.
+        hpt_results_dir_path: Directory to save hyperparameter tuning results.
+
+    Returns:
+        float: The best decision threshold found.
+    """
+    logger.info("Tuning decision threshold...")
+    hpt_specs = read_json_as_dict(hpt_specs_file_path)
+    grid_search_vals = hpt_specs["decision_threshold"]["grid_search_vals"]
+    best_val_score = -1
+    best_threshold = None
+    hpt_vals = []
+    for val in grid_search_vals:
+        val_score = evaluate_predictor_model(
+            predictor,
+            transformed_val_inputs,
+            transformed_val_labels,
+            decision_threshold=val,
+        )
+        logger.info(f"decision_threshold = {val}, val_score = {val_score}")
+        hpt_vals.append({"decision_threshold": val, "val_score": val_score})
+        if val_score > best_val_score:
+            best_val_score = val_score
+            best_threshold = val
+
+    logger.info(
+        f"Best decision_threshold = {best_threshold}; "
+        f"Validation val score = {best_val_score}"
+    )
+
+    # save hyperparameter tuning results
+    logger.info("Saving hyperparameter tuning results...")
+    hpt_results_file_path = f"{hpt_results_dir_path}/decision_threshold.json"
+    with open(hpt_results_file_path, "w", encoding="utf-8") as f_h:
+        json.dump(hpt_vals, f_h, indent=4)
+
+    return best_threshold
+
+
 def run_training(
     input_schema_dir: str = paths.INPUT_SCHEMA_DIR,
     saved_schema_dir_path: str = paths.SAVED_SCHEMA_DIR_PATH,
@@ -31,7 +84,6 @@ def run_training(
     preprocessing_dir_path: str = paths.PREPROCESSING_DIR_PATH,
     predictor_dir_path: str = paths.PREDICTOR_DIR_PATH,
     default_hyperparameters_file_path: str = paths.DEFAULT_HYPERPARAMETERS_FILE_PATH,
-    run_tuning: bool = False,
     hpt_specs_file_path: str = paths.HPT_CONFIG_FILE_PATH,
     hpt_results_dir_path: str = paths.HPT_OUTPUTS_DIR,
     explainer_config_file_path: str = paths.EXPLAINER_CONFIG_FILE_PATH,
@@ -115,7 +167,7 @@ def run_training(
         transformed_train_inputs, transformed_train_targets = transform_data(
             pipeline, target_encoder, train_split_with_nulls
         )
-        transformed_val_inputs, transformed_val_targets = transform_data(
+        transformed_val_inputs, transformed_val_labels = transform_data(
             pipeline, target_encoder, val_split
         )
 
@@ -124,51 +176,30 @@ def run_training(
             pipeline, target_encoder, preprocessing_dir_path
         )
 
-        # hyperparameter tuning + training the model
-        if run_tuning:
-            logger.info("Tuning hyperparameters...")
-            tuned_hyperparameters = tune_hyperparameters(
-                train_X=transformed_train_inputs,
-                train_y=transformed_train_targets,
-                valid_X=transformed_val_inputs,
-                valid_y=transformed_val_targets,
-                hpt_results_dir_path=hpt_results_dir_path,
-                is_minimize=False,
-                default_hyperparameters_file_path=default_hyperparameters_file_path,
-                hpt_specs_file_path=hpt_specs_file_path,
-            )
-            default_hyperparameters = read_json_as_dict(
-                default_hyperparameters_file_path
-            )
-            tuned_hyperparameters = {**default_hyperparameters, **tuned_hyperparameters}
-            logger.info("Training classifier...")
-            predictor = train_predictor_model(
-                transformed_train_inputs,
-                transformed_train_targets,
-                hyperparameters=tuned_hyperparameters,
-            )
-        else:
-            # use default hyperparameters to train model
-            logger.info("Training classifier...")
-            default_hyperparameters = read_json_as_dict(
-                default_hyperparameters_file_path
-            )
-            predictor = train_predictor_model(
-                transformed_train_inputs,
-                transformed_train_targets,
-                default_hyperparameters,
-            )
+        # train model with default hyperparams
+        logger.info("Training classifier...")
+        hyperparameters = read_json_as_dict(default_hyperparameters_file_path)
+        predictor = train_predictor_model(
+            transformed_train_inputs,
+            transformed_train_targets,
+            hyperparameters,
+        )
+
+        # tune  decision threshold
+        best_threshold = tune_decision_threshold(
+            predictor,
+            transformed_val_inputs,
+            transformed_val_labels,
+            hpt_specs_file_path,
+            hpt_results_dir_path,
+        )
+
+        # set the best decision threshold in the model
+        set_decision_threshold(predictor, best_threshold)
 
         # save predictor model
         logger.info("Saving classifier...")
         save_predictor_model(predictor, predictor_dir_path)
-
-        # calculate and print validation accuracy
-        logger.info("Calculating f1-score on validation data...")
-        val_accuracy = evaluate_predictor_model(
-            predictor, transformed_val_inputs, transformed_val_targets
-        )
-        logger.info(f"Validation data f1-score: {val_accuracy}")
 
         # fit and save explainer
         logger.info("Fitting and saving explainer...")
@@ -188,21 +219,5 @@ def run_training(
         raise Exception(f"{err_msg} Error: {str(exc)}") from exc
 
 
-def parse_arguments() -> argparse.Namespace:
-    """Parse the command line argument that indicates if user wants to run
-    hyperparameter tuning."""
-    parser = argparse.ArgumentParser(description="Train a binary classification model.")
-    parser.add_argument(
-        "-t",
-        "--tune",
-        action="store_true",
-        help=(
-            "Run hyperparameter tuning before training the model. "
-            + "If not set, use default hyperparameters.",
-        ),
-    )
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    run_training(run_tuning=True)
+    run_training()
